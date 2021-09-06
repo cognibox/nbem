@@ -14,15 +14,22 @@ HC_COMPANY = 2
 
 
 # define commandline parser
-parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory')
+parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
-                    help='UTF-8 csv DB export of employees with the following columns: ID, firstname, lastname, birthday, company')
+                    help='''UTF-8 encoded csv DB export of employees with the following columns: 
+                        ID, firstname, lastname, birthday, company''')
 parser.add_argument('hc_list',
-                    help='Windows 1252 csv file with the following columns: firstname, lastname, company')
+                    help='''Windows 1252 encoded csv file with the following columns:
+    firstname, lastname, company, any other columns...'''
+                    )
 parser.add_argument('output',
-                    help='csv file with the following columns: firstname, lastname, company')
+                    help='''Windows 1252 encoded csv file with the following columns: 
+    firstname, lastname, company, any other columns..., matching information  
+Matching information format:
+    Cognibox ID, firstname lastname, birthdate --> Company 1, match ratio 1,
+    Company 2, match ratio 2, etc...
+The matching ratio is a value betwween 0 and 100, where 100 is a perfect best match''')
 args = parser.parse_args()
-
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
@@ -52,9 +59,6 @@ if __name__ == '__main__':
         hc_firstname = hc_row[HC_FIRSTNAME]
         hc_lastname = hc_row[HC_LASTNAME]
         hc_company = hc_row[HC_COMPANY]
-        clean_hc_firstname = hc_firstname.lower().strip()
-        clean_hc_lastname = hc_firstname.lower().strip()
-        clean_hc_company = hc_company.lower().replace('.', '').replace(',', '').strip()
 
         for cbx_row in cbx_data:
             cbx_firstname = cbx_row[CBX_FIRSTNAME]
@@ -64,10 +68,11 @@ if __name__ == '__main__':
             clean_cbx_lastname = cbx_firstname.lower().strip()
             clean_cbx_company = cbx_company.lower().replace('.', '').replace(',', '').strip()
 
-            ratio_firstname = fuzz.ratio(clean_cbx_firstname, clean_hc_firstname)
-            ratio_lastname = fuzz.ratio(clean_cbx_lastname, clean_hc_lastname)
-            ratio_company = fuzz.ratio(clean_cbx_company, clean_hc_company)
-            if ratio_firstname > 80 and ratio_lastname > 80 and ratio_company > 60:
+            ratio_firstname = fuzz.ratio(cbx_firstname.lower().strip(),hc_firstname.lower().strip())
+            ratio_lastname = fuzz.ratio(cbx_firstname.lower().strip(), hc_firstname.lower().strip())
+            ratio_company = fuzz.ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
+                                       hc_company.lower().replace('.', '').replace(',', '').strip())
+            if ratio_firstname > 90 and ratio_lastname > 90 and ratio_company > 60:
                 overall_ratio = ratio_company * ratio_lastname * ratio_firstname / 10000
                 if cbx_row[CBX_ID] in matches:
                     matches[cbx_row[CBX_ID]].append({'firstname':cbx_firstname,
