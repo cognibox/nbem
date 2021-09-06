@@ -16,7 +16,7 @@ HC_COMPANY = 2
 # define commandline parser
 parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
-                    help='''csv DB export of employees with the following columns: 
+                    help='''csv DB export file of employees with the following columns: 
                         Cognibox ID, firstname, lastname, birthday, contractor''')
 
 parser.add_argument('hc_list',
@@ -24,7 +24,7 @@ parser.add_argument('hc_list',
     firstname, lastname, company, any other columns...'''
                     )
 parser.add_argument('output',
-                    help='''Windows 1252 encoded csv file with the following columns: 
+                    help='''csv file with the following columns: 
     firstname, lastname, contractor, any other columns..., Cognibox ID, matching information  
 Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1, match ratio 1,
@@ -40,6 +40,11 @@ parser.add_argument('--cbx_list_encoding', dest='cbx_encoding', action='store',
 parser.add_argument('--hc_list_encoding', dest='hc_encoding', action='store',
                     default='cp1252',
                     help='Encoding for the hc list (default: cp1252)')
+
+parser.add_argument('--output_encoding', dest='output_encoding', action='store',
+                    default='cp1252',
+                    help='Encoding for the hc list (default: cp1252)')
+
 
 parser.add_argument('--min_company_match_ratio', dest='ratio', action='store',
                     default=60,
@@ -57,7 +62,7 @@ if __name__ == '__main__':
     # output parameters used
     print(f'Reading CBX list: {args.cbx_list} [{args.cbx_encoding}]')
     print(f'Reading HC list: {args.hc_list} [{args.hc_encoding}]')
-    print(f'Outputing results in: {args.output}')
+    print(f'Outputing results in: {args.output} [{args.output_encoding}]')
     print(f'contractor match ratio: {args.ratio}')
     # read data
     cbx_data = []
@@ -122,7 +127,7 @@ if __name__ == '__main__':
         print(f'{index} of {total} [{len(matches)} found]')
         index += 1
 
-    with open(output_file, 'w', newline='', encoding='cp1252') as resultfile:
+    with open(output_file, 'w', newline='', encoding=args.output_encoding) as resultfile:
         writer = csv.writer(resultfile)
         for row in hc_data:
             writer.writerow(row)
