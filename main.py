@@ -47,22 +47,19 @@ if __name__ == '__main__':
             hc_data.append(row)
 
     # match
-    with open(output_file, 'w', newline='', encoding='cp1252') as resultfile:
-        writer = csv.writer(resultfile)
+    for hc_row in hc_data:
+        matches = {}
+        hc_firstname = hc_row[HC_FIRSTNAME]
+        hc_lastname = hc_row[HC_LASTNAME]
+        hc_company = hc_row[HC_COMPANY]
+        clean_hc_firstname = hc_firstname.lower().strip()
+        clean_hc_lastname = hc_firstname.lower().strip()
+        clean_hc_company = hc_company.lower().replace('.', '').replace(',', '').strip()
+
         for cbx_row in cbx_data:
-            writer.writerow(row)
-
-
-        for hc_row in hc_data:
-            hc_firstname = hc_row[HC_FIRSTNAME]
-            hc_lastname = hc_row[HC_LASTNAME]
-            hc_company = hc_row[HC_COMPANY]
             cbx_firstname = cbx_row[CBX_FIRSTNAME]
             cbx_lastname = cbx_row[CBX_LASTNAME]
             cbx_company = cbx_row[CBX_COMPANY]
-            clean_hc_firstname = hc_firstname.lower().strip()
-            clean_hc_lastname = hc_firstname.lower().strip()
-            clean_hc_company = hc_company.lower().replace('.', '').replace(',', '').strip()
             clean_cbx_firstname = cbx_firstname.lower().strip()
             clean_cbx_lastname = cbx_firstname.lower().strip()
             clean_cbx_company = cbx_company.lower().replace('.', '').replace(',', '').strip()
@@ -70,13 +67,33 @@ if __name__ == '__main__':
             ratio_firstname = fuzz.ratio(clean_cbx_firstname, clean_hc_firstname)
             ratio_lastname = fuzz.ratio(clean_cbx_lastname, clean_hc_lastname)
             ratio_company = fuzz.ratio(clean_cbx_company, clean_hc_company)
-
-            if ratio_firstname > 90 and ratio_lastname > 90 and ratio_company > 60:
-                overall_ratio = ratio_company * ratio_lastname * ratio_firstname
-                print(cbx_firstname, cbx_lastname, cbx_company, overall_ratio)
-
-
+            if ratio_firstname > 80 and ratio_lastname > 80 and ratio_company > 60:
+                overall_ratio = ratio_company * ratio_lastname * ratio_firstname / 10000
+                if cbx_row[CBX_ID] in matches:
+                    matches[cbx_row[CBX_ID]].append({'firstname':cbx_firstname,
+                                                     'lastname': cbx_lastname,
+                                                     'birthdate': cbx_row[CBX_BIRTHDATE],
+                                                     'company': cbx_company,
+                                                     'ratio':overall_ratio})
+                else:
+                    matches[cbx_row[CBX_ID]] = [{'firstname':cbx_firstname,
+                                                 'lastname': cbx_lastname,
+                                                 'birthdate': cbx_row[CBX_BIRTHDATE],
+                                                 'company': cbx_company,
+                                                 'ratio': overall_ratio}]
+        ids = []
+        for key, value in matches.items():
+            companies = []
+            value.sort(key=lambda x: x['ratio'], reverse=True)
+            for item in value[0:5]:
+                companies.append(f'{item["company"]}: {item["ratio"]}')
+            ids.append(f'{key}, {item["firstname"]} {item["lastname"]}, {item["birthdate"]} --> {", ".join(companies)}')
+        hc_row.append('\n'.join(ids))
     with open(output_file, 'w', newline='', encoding='cp1252') as resultfile:
         writer = csv.writer(resultfile)
-        for row     in hc_data:
+        total = len(hc_data)
+        index = 1
+        for row in hc_data:
+            print(f'{index} of {total}')
             writer.writerow(row)
+            index += 1
