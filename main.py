@@ -8,9 +8,9 @@ CBX_ID = 2
 CBX_BIRTHDATE = 3
 CBX_COMPANY = 4
 
-HC_FIRSTNAME = 0
-HC_LASTNAME = 1
-HC_COMPANY = 2
+HC_COMPANY = 0
+HC_FIRSTNAME = 1
+HC_LASTNAME = 2
 
 
 # define commandline parser
@@ -21,11 +21,11 @@ parser.add_argument('cbx_list',
 
 parser.add_argument('hc_list',
                     help='''csv file with the following columns:
-    firstname, lastname, company, any other columns...'''
+    contractor, firstname, lastname, any other columns...'''
                     )
 parser.add_argument('output',
                     help='''csv file with the following columns: 
-    firstname, lastname, contractor, any other columns..., Cognibox ID, matching information  
+    contractor, firstname, lastname, any other columns..., Cognibox ID, matching information  
 Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1, match ratio 1,
     Contractor 2, match ratio 2, etc...
@@ -82,7 +82,6 @@ if __name__ == '__main__':
         hc_firstname = hc_row[HC_FIRSTNAME]
         hc_lastname = hc_row[HC_LASTNAME]
         hc_company = hc_row[HC_COMPANY]
-
         for cbx_row in cbx_data:
             cbx_firstname = cbx_row[CBX_FIRSTNAME]
             cbx_lastname = cbx_row[CBX_LASTNAME]
@@ -92,7 +91,7 @@ if __name__ == '__main__':
             clean_cbx_company = cbx_company.lower().replace('.', '').replace(',', '').strip()
 
             ratio_firstname = fuzz.ratio(cbx_firstname.lower().strip(),hc_firstname.lower().strip())
-            ratio_lastname = fuzz.ratio(cbx_firstname.lower().strip(), hc_firstname.lower().strip())
+            ratio_lastname = fuzz.ratio(cbx_lastname.lower().strip(), hc_lastname.lower().strip())
             ratio_company = fuzz.ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
                                        hc_company.lower().replace('.', '').replace(',', '').strip())
             if ratio_firstname >= 90 and ratio_lastname >= 90 and ratio_company >= float(args.ratio):
