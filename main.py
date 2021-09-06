@@ -16,19 +16,35 @@ HC_COMPANY = 2
 # define commandline parser
 parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
-                    help='''UTF-8 encoded csv DB export of employees with the following columns: 
-                        ID, firstname, lastname, birthday, company''')
+                    help='''csv DB export of employees with the following columns: 
+                        Cognibox ID, firstname, lastname, birthday, contractor''')
+
 parser.add_argument('hc_list',
-                    help='''Windows 1252 encoded csv file with the following columns:
+                    help='''csv file with the following columns:
     firstname, lastname, company, any other columns...'''
                     )
 parser.add_argument('output',
                     help='''Windows 1252 encoded csv file with the following columns: 
-    firstname, lastname, company, any other columns..., matching information  
+    firstname, lastname, contractor, any other columns..., Cognibox ID, matching information  
 Matching information format:
-    Cognibox ID, firstname lastname, birthdate --> Company 1, match ratio 1,
-    Company 2, match ratio 2, etc...
-The matching ratio is a value betwween 0 and 100, where 100 is a perfect best match''')
+    Cognibox ID, firstname lastname, birthdate --> Contractor 1, match ratio 1,
+    Contractor 2, match ratio 2, etc...
+The matching ratio is a value betwween 0 and 100, where 100 is a perfect best match.
+Please note the Cognibox ID is set ONLY if a single match his found. If no match
+or multiple matches are found it is left empty.''')
+
+parser.add_argument('--cbx_list_encoding', dest='cbx_encoding', action='store',
+                    default='utf-8',
+                    help='Encoding for the cbx list (default: utf-8)')
+
+parser.add_argument('--hc_list_encoding', dest='hc_encoding', action='store',
+                    default='cp1252',
+                    help='Encoding for the hc list (default: cp1252)')
+
+parser.add_argument('--min_company_match_ratio', dest='ratio', action='store',
+                    default=60,
+                    help='Minimum match ratio for contractors, between 0 and 100 (default 60)')
+
 args = parser.parse_args()
 
 # Press the green button in the gutter to run the script.
@@ -39,21 +55,23 @@ if __name__ == '__main__':
     output_file = data_path + args.output
 
     # output parameters used
-    print(f'Reading CBX list: {args.cbx_list}')
-    print(f'Reading HC list: {args.hc_list}')
+    print(f'Reading CBX list: {args.cbx_list} [{args.cbx_encoding}]')
+    print(f'Reading HC list: {args.hc_list} [{args.hc_encoding}]')
     print(f'Outputing results in: {args.output}')
-
+    print(f'contractor match ratio: {args.ratio}')
     # read data
     cbx_data = []
     hc_data = []
-    with open(cbx_file, 'r', encoding="utf-8") as cbx:
+    with open(cbx_file, 'r', encoding=args.cbx_encoding) as cbx:
         for row in csv.reader(cbx):
             cbx_data.append(row)
-    with open(hc_file, 'r', encoding="cp1252") as hc:
+    with open(hc_file, 'r', encoding=args.hc_encoding) as hc:
         for row in csv.reader(hc):
             hc_data.append(row)
 
     # match
+    total = len(hc_data)
+    index = 1
     for hc_row in hc_data:
         matches = {}
         hc_firstname = hc_row[HC_FIRSTNAME]
@@ -72,7 +90,7 @@ if __name__ == '__main__':
             ratio_lastname = fuzz.ratio(cbx_firstname.lower().strip(), hc_firstname.lower().strip())
             ratio_company = fuzz.ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
                                        hc_company.lower().replace('.', '').replace(',', '').strip())
-            if ratio_firstname > 90 and ratio_lastname > 90 and ratio_company > 60:
+            if ratio_firstname >= 90 and ratio_lastname >= 90 and ratio_company >= float(args.ratio):
                 overall_ratio = ratio_company * ratio_lastname * ratio_firstname / 10000
                 if cbx_row[CBX_ID] in matches:
                     matches[cbx_row[CBX_ID]].append({'firstname':cbx_firstname,
@@ -93,12 +111,19 @@ if __name__ == '__main__':
             for item in value[0:5]:
                 companies.append(f'{item["company"]}: {item["ratio"]}')
             ids.append(f'{key}, {item["firstname"]} {item["lastname"]}, {item["birthdate"]} --> {", ".join(companies)}')
+
+        # append matching results to the hc_list
+        if len(matches) == 1:
+            hc_row.append(list(matches.keys())[0])
+        else:
+            hc_row.append('')
         hc_row.append('\n'.join(ids))
+
+        print(f'{index} of {total} [{len(matches)} found]')
+        index += 1
+
     with open(output_file, 'w', newline='', encoding='cp1252') as resultfile:
         writer = csv.writer(resultfile)
-        total = len(hc_data)
-        index = 1
         for row in hc_data:
-            print(f'{index} of {total}')
             writer.writerow(row)
-            index += 1
+
