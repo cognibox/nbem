@@ -12,12 +12,11 @@ HC_COMPANY = 0
 HC_FIRSTNAME = 1
 HC_LASTNAME = 2
 
-
 # define commandline parser
 parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
                     help='''csv DB export file of employees with the following columns: 
-                        Cognibox ID, firstname, lastname, birthday, contractor''')
+                        Cognibox ID, firstname, lastname, birthdate, contractor''')
 
 parser.add_argument('hc_list',
                     help='''csv file with the following columns:
@@ -25,7 +24,7 @@ parser.add_argument('hc_list',
                     )
 parser.add_argument('output',
                     help='''csv file with the following columns: 
-    contractor, firstname, lastname, any other columns..., Cognibox ID, matching information  
+    contractor, firstname, lastname, any other columns..., Cognibox ID, birthdate,  matching information  
 Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1, match ratio 1,
     Contractor 2, match ratio 2, etc...
@@ -74,60 +73,60 @@ if __name__ == '__main__':
         for row in csv.reader(hc):
             hc_data.append(row)
 
-    # match
-    total = len(hc_data)
-    index = 1
-    for hc_row in hc_data:
-        matches = {}
-        hc_firstname = hc_row[HC_FIRSTNAME]
-        hc_lastname = hc_row[HC_LASTNAME]
-        hc_company = hc_row[HC_COMPANY]
-        for cbx_row in cbx_data:
-            cbx_firstname = cbx_row[CBX_FIRSTNAME]
-            cbx_lastname = cbx_row[CBX_LASTNAME]
-            cbx_company = cbx_row[CBX_COMPANY]
-            clean_cbx_firstname = cbx_firstname.lower().strip()
-            clean_cbx_lastname = cbx_firstname.lower().strip()
-            clean_cbx_company = cbx_company.lower().replace('.', '').replace(',', '').strip()
+    with open(output_file, 'w', newline='', encoding=args.output_encoding) as resultfile:
+        writer = csv.writer(resultfile)
 
-            ratio_firstname = fuzz.ratio(cbx_firstname.lower().strip(),hc_firstname.lower().strip())
-            ratio_lastname = fuzz.ratio(cbx_lastname.lower().strip(), hc_lastname.lower().strip())
-            ratio_company = fuzz.ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
-                                       hc_company.lower().replace('.', '').replace(',', '').strip())
-            if ratio_firstname >= 90 and ratio_lastname >= 90 and ratio_company >= float(args.ratio):
-                overall_ratio = ratio_company * ratio_lastname * ratio_firstname / 10000
-                if cbx_row[CBX_ID] in matches:
-                    matches[cbx_row[CBX_ID]].append({'firstname':cbx_firstname,
+        # match
+        total = len(hc_data)
+        index = 1
+        for hc_row in hc_data:
+            matches = {}
+            hc_firstname = hc_row[HC_FIRSTNAME]
+            hc_lastname = hc_row[HC_LASTNAME]
+            hc_company = hc_row[HC_COMPANY]
+            for cbx_row in cbx_data:
+                cbx_firstname = cbx_row[CBX_FIRSTNAME]
+                cbx_lastname = cbx_row[CBX_LASTNAME]
+                cbx_company = cbx_row[CBX_COMPANY]
+                clean_cbx_firstname = cbx_firstname.lower().strip()
+                clean_cbx_lastname = cbx_firstname.lower().strip()
+                clean_cbx_company = cbx_company.lower().replace('.', '').replace(',', '').strip()
+
+                ratio_firstname = fuzz.ratio(cbx_firstname.lower().strip(),hc_firstname.lower().strip())
+                ratio_lastname = fuzz.ratio(cbx_lastname.lower().strip(), hc_lastname.lower().strip())
+                ratio_company = fuzz.ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
+                                           hc_company.lower().replace('.', '').replace(',', '').strip())
+                if ratio_firstname >= 90 and ratio_lastname >= 90 and ratio_company >= float(args.ratio):
+                    overall_ratio = ratio_company * ratio_lastname * ratio_firstname / 10000
+                    if cbx_row[CBX_ID] in matches:
+                        matches[cbx_row[CBX_ID]].append({'firstname':cbx_firstname,
+                                                         'lastname': cbx_lastname,
+                                                         'birthdate': cbx_row[CBX_BIRTHDATE],
+                                                         'company': cbx_company,
+                                                         'ratio':overall_ratio})
+                    else:
+                        matches[cbx_row[CBX_ID]] = [{'firstname':cbx_firstname,
                                                      'lastname': cbx_lastname,
                                                      'birthdate': cbx_row[CBX_BIRTHDATE],
                                                      'company': cbx_company,
-                                                     'ratio':overall_ratio})
-                else:
-                    matches[cbx_row[CBX_ID]] = [{'firstname':cbx_firstname,
-                                                 'lastname': cbx_lastname,
-                                                 'birthdate': cbx_row[CBX_BIRTHDATE],
-                                                 'company': cbx_company,
-                                                 'ratio': overall_ratio}]
-        ids = []
-        for key, value in matches.items():
-            companies = []
-            value.sort(key=lambda x: x['ratio'], reverse=True)
-            for item in value[0:5]:
-                companies.append(f'{item["company"]}: {item["ratio"]}')
-            ids.append(f'{key}, {item["firstname"]} {item["lastname"]}, {item["birthdate"]} --> {", ".join(companies)}')
+                                                     'ratio': overall_ratio}]
+            ids = []
+            for key, value in matches.items():
+                companies = []
+                value.sort(key=lambda x: x['ratio'], reverse=True)
+                for item in value[0:5]:
+                    companies.append(f'{item["company"]}: {item["ratio"]}')
+                ids.append(f'{key}, {item["firstname"]} {item["lastname"]}, {item["birthdate"]} --> {", ".join(companies)}')
 
-        # append matching results to the hc_list
-        if len(matches) == 1:
-            hc_row.append(list(matches.keys())[0])
-        else:
-            hc_row.append('')
-        hc_row.append('\n'.join(ids))
-
-        print(f'{index} of {total} [{len(matches)} found]')
-        index += 1
-
-    with open(output_file, 'w', newline='', encoding=args.output_encoding) as resultfile:
-        writer = csv.writer(resultfile)
-        for row in hc_data:
-            writer.writerow(row)
-
+            # append matching results to the hc_list
+            if len(matches) == 1:
+                key = list(matches.keys())[0]
+                hc_row.append(key)
+                hc_row.append(matches[key][0]["birthdate"])
+            else:
+                hc_row.append('')
+                hc_row.append('')
+            hc_row.append('\n'.join(ids))
+            writer.writerow(hc_row)
+            print(f'{index} of {total} [{len(matches)} found]')
+            index += 1
