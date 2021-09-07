@@ -28,8 +28,8 @@ parser.add_argument('output',
 Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1, match ratio 1,
     Contractor 2, match ratio 2, etc...
-The matching ratio is a value betwween 0 and 100, where 100 is a perfect best match.
-Please note the Cognibox ID is set ONLY if a single match his found. If no match
+The matching ratio is a value betwween 0 and 100, where 100 is a perfect match.
+Please note the Cognibox ID and birthdate is set ONLY if a single match his found. If no match
 or multiple matches are found it is left empty.''')
 
 parser.add_argument('--cbx_list_encoding', dest='cbx_encoding', action='store',
