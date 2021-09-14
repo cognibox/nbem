@@ -7,6 +7,7 @@ CBX_LASTNAME = 1
 CBX_ID = 2
 CBX_BIRTHDATE = 3
 CBX_COMPANY = 4
+CBX_PARENTS = 5
 
 HC_COMPANY = 0
 HC_FIRSTNAME = 1
@@ -16,7 +17,7 @@ HC_LASTNAME = 2
 parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory', formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
                     help='''csv DB export file of employees with the following columns: 
-                        Cognibox ID, firstname, lastname, birthdate, contractor''')
+                        Cognibox ID, firstname, lastname, birthdate, contractor, contractor parents''')
 
 parser.add_argument('hc_list',
                     help='''csv file with the following columns:
@@ -51,7 +52,7 @@ parser.add_argument('--min_company_match_ratio', dest='ratio', action='store',
 
 args = parser.parse_args()
 
-# Press the green button in the gutter to run the script.
+
 if __name__ == '__main__':
     data_path = './data/'
     cbx_file = data_path + args.cbx_list
@@ -84,28 +85,34 @@ if __name__ == '__main__':
             hc_firstname = hc_row[HC_FIRSTNAME]
             hc_lastname = hc_row[HC_LASTNAME]
             hc_company = hc_row[HC_COMPANY]
+            clean_hc_company = hc_company.lower().replace('.', '').replace(',', '').strip()
             for cbx_row in cbx_data:
                 cbx_firstname = cbx_row[CBX_FIRSTNAME]
                 cbx_lastname = cbx_row[CBX_LASTNAME]
                 cbx_company = cbx_row[CBX_COMPANY]
-                clean_cbx_firstname = cbx_firstname.lower().strip()
-                clean_cbx_lastname = cbx_firstname.lower().strip()
-                clean_cbx_company = cbx_company.lower().replace('.', '').replace(',', '').strip()
+                cbx_parents = cbx_row[CBX_PARENTS]
 
                 ratio_firstname = fuzz.ratio(cbx_firstname.lower().strip(),hc_firstname.lower().strip())
                 ratio_lastname = fuzz.ratio(cbx_lastname.lower().strip(), hc_lastname.lower().strip())
-                ratio_company = fuzz.ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
-                                           hc_company.lower().replace('.', '').replace(',', '').strip())
-                if ratio_firstname >= 90 and ratio_lastname >= 90 and ratio_company >= float(args.ratio):
+                ratio_company = fuzz.token_sort_ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
+                                                      clean_hc_company)
+                ratio_parent = 0
+                for item in cbx_parents.split(';'):
+                    ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
+                                                  clean_hc_company)
+                    ratio_parent = ratio if ratio > ratio_parent else ratio_parent
+                if ratio_firstname >= 90 and ratio_lastname >= 90 and (ratio_company >= float(args.ratio) or ratio_parent >= float(args.ratio)):
+                    ratio_company = ratio_parent if ratio_parent > ratio_company else ratio_company
                     overall_ratio = ratio_company * ratio_lastname * ratio_firstname / 10000
+                    cbx_company = f'{cbx_company} [{cbx_parents}]' if cbx_parents else cbx_company
                     if cbx_row[CBX_ID] in matches:
-                        matches[cbx_row[CBX_ID]].append({'firstname':cbx_firstname,
+                        matches[cbx_row[CBX_ID]].append({'firstname': cbx_firstname,
                                                          'lastname': cbx_lastname,
                                                          'birthdate': cbx_row[CBX_BIRTHDATE],
                                                          'company': cbx_company,
-                                                         'ratio':overall_ratio})
+                                                         'ratio': overall_ratio})
                     else:
-                        matches[cbx_row[CBX_ID]] = [{'firstname':cbx_firstname,
+                        matches[cbx_row[CBX_ID]] = [{'firstname': cbx_firstname,
                                                      'lastname': cbx_lastname,
                                                      'birthdate': cbx_row[CBX_BIRTHDATE],
                                                      'company': cbx_company,
