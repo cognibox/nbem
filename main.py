@@ -79,13 +79,16 @@ if __name__ == '__main__':
     # read data
     cbx_data = []
     hc_data = []
+    print('Reading Cognibox data file...')
     with open(cbx_file, 'r', encoding=args.cbx_encoding) as cbx:
         for row in csv.reader(cbx):
             cbx_data.append(row)
+    print(f'Completed reading {len(cbx_data)} employees)')
+    print('Reading hiring client data file...')
     with open(hc_file, 'r', encoding=args.hc_encoding) as hc:
         for row in csv.reader(hc):
             hc_data.append(row)
-
+    print(f'Completed reading {len(hc_data)} employees)')
     with open(output_file, 'w', newline='', encoding=args.output_encoding) as resultfile:
         writer = csv.writer(resultfile)
 
@@ -111,21 +114,23 @@ if __name__ == '__main__':
                                                       clean_hc_company)
                 ratio_parent = 0
                 for item in cbx_parents.split(args.list_seperator):
+                    if item == cbx_company:
+                        continue
                     ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
                                                   clean_hc_company)
                     ratio_parent = ratio if ratio > ratio_parent else ratio_parent
-
                 ratio_previous = 0
                 for item in cbx_previous.split(args.list_seperator):
+                    if item == cbx_company:
+                        continue
                     ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
                                                   clean_hc_company)
                     ratio_previous = ratio if ratio > ratio_previous else ratio_previous
-                if ratio_name >= 90 and (ratio_previous > 60 or ratio_company > 60 or ratio_parent > 60):
-                    print(ratio_company, ratio_parent, ratio_previous)
                 if ratio_name >= float(args.ratio_name) and \
                         (ratio_company >= float(args.ratio_company) or
                          ratio_parent >= float(args.ratio_company) or
                          ratio_previous >= float(args.ratio_company)):
+                    print(cbx_firstname, cbx_lastname, cbx_company, cbx_row[CBX_ID], ratio_company, ratio_parent, ratio_previous)
                     ratio_company = ratio_parent if ratio_parent > ratio_company else ratio_company
                     ratio_company = ratio_previous if ratio_previous > ratio_company else ratio_company
                     overall_ratio = ratio_company * ratio_name / 100
