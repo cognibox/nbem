@@ -19,19 +19,19 @@ parser = argparse.ArgumentParser(description='Tool to match employees without bi
                                              'all input/output files must be in the current directory',
                                  formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
-                    help='''csv DB export file of employees with the following columns: 
+                    help='''csv DB export file (no header) of employees with the following columns: 
     Cognibox ID, firstname, lastname, birthdate, contractor, 
     contractor parent list,
     employee previous employer list''')
 
 parser.add_argument('hc_list',
-                    help='''csv file with the following columns:
+                    help='''csv file (with header) and the following columns:
     contractor, firstname, lastname, any other columns...'''
                     )
 parser.add_argument('output',
                     help='''csv file with the following columns: 
     contractor, firstname, lastname, any other columns..., Cognibox ID, birthdate,  best matching score, 
-    matching information  
+    partial name matching, matching information  
 Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1 [parents: C1 parent1;C1 parent2;etc..] 
     [previous: Empl. Previous1;Empl. Previous2], match ratio 1,
@@ -94,6 +94,10 @@ if __name__ == '__main__':
     print(f'Completed reading {len(hc_data)} employees.')
     with open(output_file, 'w', newline='', encoding=args.output_encoding) as resultfile:
         writer = csv.writer(resultfile)
+        headers = hc_data.pop(0)
+        headers.extend(['Cognibox ID', 'birthdate', 'best matching score', 'is partial name match',
+                       'matching information'])
+        writer.writerow(headers)
 
         # match
         total = len(hc_data)
