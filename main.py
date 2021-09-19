@@ -15,7 +15,9 @@ HC_FIRSTNAME = 1
 HC_LASTNAME = 2
 
 # define commandline parser
-parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, all input/output files must be in the current directory', formatter_class=argparse.RawTextHelpFormatter)
+parser = argparse.ArgumentParser(description='Tool to match employees without birthday to employees ID in CBX, '
+                                             'all input/output files must be in the current directory',
+                                 formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
                     help='''csv DB export file of employees with the following columns: 
     Cognibox ID, firstname, lastname, birthdate, contractor, 
@@ -31,7 +33,8 @@ parser.add_argument('output',
     contractor, firstname, lastname, any other columns..., Cognibox ID, birthdate,  best matching score, 
     matching information  
 Matching information format:
-    Cognibox ID, firstname lastname, birthdate --> Contractor 1 [parents: C1 parent1;C1 parent2;etc..] [previous: Empl. Previous1;Empl. Previous2], match ratio 1,
+    Cognibox ID, firstname lastname, birthdate --> Contractor 1 [parents: C1 parent1;C1 parent2;etc..] 
+    [previous: Empl. Previous1;Empl. Previous2], match ratio 1,
     Contractor 2 [C2 parent1;C2 parent2;etc..], match ratio 2, etc...
 The matching ratio is a value betwween 0 and 100, where 100 is a perfect match.
 Please note the Cognibox ID and birthdate is set ONLY if a single match his found. If no match
@@ -83,12 +86,12 @@ if __name__ == '__main__':
     with open(cbx_file, 'r', encoding=args.cbx_encoding) as cbx:
         for row in csv.reader(cbx):
             cbx_data.append(row)
-    print(f'Completed reading {len(cbx_data)} employees)')
+    print(f'Completed reading {len(cbx_data)} employees.')
     print('Reading hiring client data file...')
     with open(hc_file, 'r', encoding=args.hc_encoding) as hc:
         for row in csv.reader(hc):
             hc_data.append(row)
-    print(f'Completed reading {len(hc_data)} employees)')
+    print(f'Completed reading {len(hc_data)} employees.')
     with open(output_file, 'w', newline='', encoding=args.output_encoding) as resultfile:
         writer = csv.writer(resultfile)
 
@@ -96,7 +99,7 @@ if __name__ == '__main__':
         total = len(hc_data)
         index = 1
         for hc_row in hc_data:
-            matches = {}
+            matches = []
             hc_firstname = hc_row[HC_FIRSTNAME]
             hc_lastname = hc_row[HC_LASTNAME]
             hc_company = hc_row[HC_COMPANY]
@@ -110,65 +113,68 @@ if __name__ == '__main__':
                 cbx_name = f'{cbx_firstname.lower().strip()} {cbx_lastname.lower().strip()}'.strip()
                 hc_name = f'{hc_firstname.lower().strip()} {hc_lastname.lower().strip()}'.strip()
                 ratio_name = fuzz.token_set_ratio(cbx_name, hc_name)
-                ratio_company = fuzz.token_sort_ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
+                ratio_name_exact = fuzz.token_sort_ratio(cbx_name, hc_name)
+
+                if ratio_name >= float(args.ratio_name):
+                    partial = True if ratio_name_exact < float(args.ratio_name) else False
+                    ratio_company = fuzz.token_sort_ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
+                                                          clean_hc_company)
+                    ratio_parent = 0
+                    cbx_parent_list = cbx_parents.split(args.list_seperator)
+                    for item in cbx_parent_list:
+                        if item == cbx_company:
+                            continue
+                        ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
                                                       clean_hc_company)
-                ratio_parent = 0
-                for item in cbx_parents.split(args.list_seperator):
-                    if item == cbx_company:
-                        continue
-                    ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
-                                                  clean_hc_company)
-                    ratio_parent = ratio if ratio > ratio_parent else ratio_parent
-                ratio_previous = 0
-                for item in cbx_previous.split(args.list_seperator):
-                    if item == cbx_company:
-                        continue
-                    ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
-                                                  clean_hc_company)
-                    ratio_previous = ratio if ratio > ratio_previous else ratio_previous
-                if ratio_name >= float(args.ratio_name) and \
-                        (ratio_company >= float(args.ratio_company) or
-                         ratio_parent >= float(args.ratio_company) or
-                         ratio_previous >= float(args.ratio_company)):
-                    print(cbx_firstname, cbx_lastname, cbx_company, cbx_row[CBX_ID], ratio_company, ratio_parent, ratio_previous)
-                    ratio_company = ratio_parent if ratio_parent > ratio_company else ratio_company
-                    ratio_company = ratio_previous if ratio_previous > ratio_company else ratio_company
-                    overall_ratio = ratio_company * ratio_name / 100
-                    parent_str = f'[parent: {cbx_parents}]' if cbx_parents else None
-                    previous_str = f'[previous: {cbx_previous}]' if cbx_previous else None
-                    display = [cbx_company]
-                    if parent_str:
-                        display.append(parent_str)
-                    if previous_str:
-                        display.append(previous_str)
-                    cbx_company = ' '.join(display)
-                    if cbx_row[CBX_ID] in matches:
-                        matches[cbx_row[CBX_ID]].append({'firstname': cbx_firstname,
-                                                         'lastname': cbx_lastname,
-                                                         'birthdate': cbx_row[CBX_BIRTHDATE],
-                                                         'company': cbx_company,
-                                                         'ratio': overall_ratio})
-                    else:
-                        matches[cbx_row[CBX_ID]] = [{'firstname': cbx_firstname,
-                                                     'lastname': cbx_lastname,
-                                                     'birthdate': cbx_row[CBX_BIRTHDATE],
-                                                     'company': cbx_company,
-                                                     'ratio': overall_ratio}]
+                        ratio_parent = ratio if ratio > ratio_parent else ratio_parent
+                    ratio_previous = 0
+                    for item in cbx_previous.split(args.list_seperator):
+                        if item == cbx_company or item in cbx_parent_list:
+                            continue
+                        ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
+                                                      clean_hc_company)
+                        ratio_previous = ratio if ratio > ratio_previous else ratio_previous
+                    if (ratio_company >= float(args.ratio_company) or
+                            ratio_parent >= float(args.ratio_company) or
+                            ratio_previous >= float(args.ratio_company)):
+                        print('   --> ',cbx_firstname, cbx_lastname, cbx_company, cbx_row[CBX_ID], ratio_company,
+                              ratio_parent, ratio_previous)
+                        ratio_company = ratio_parent if ratio_parent > ratio_company else ratio_company
+                        ratio_company = ratio_previous if ratio_previous > ratio_company else ratio_company
+                        overall_ratio = ratio_company * ratio_name / 100
+                        parent_str = f'[parent: {cbx_parents}]' if cbx_parents else None
+                        previous_str = f'[previous: {cbx_previous}]' if cbx_previous else None
+                        display = [cbx_company]
+                        if parent_str:
+                            display.append(parent_str)
+                        if previous_str:
+                            display.append(previous_str)
+                        cbx_company = ' '.join(display)
+                        matches.append({'cbx_id': cbx_row[CBX_ID],
+                                        'firstname': cbx_firstname,
+                                        'lastname': cbx_lastname,
+                                        'birthdate': cbx_row[CBX_BIRTHDATE],
+                                        'company': cbx_company,
+                                        'ratio': overall_ratio,
+                                        'partial': partial, })
             ids = []
             best_match = 0
-            for key, value in matches.items():
-                companies = []
-                value.sort(key=lambda x: x['ratio'], reverse=True)
-                best_match = value[0]['ratio'] if value[0]['ratio'] > best_match else best_match
-                for item in value[0:5]:
-                    companies.append(f'{item["company"]}: {item["ratio"]}')
-                ids.append(f'{key}, {item["firstname"]} {item["lastname"]}, {item["birthdate"]} --> {", ".join(companies)}')
+            matches.sort(key=lambda x: x['ratio'], reverse=True)
+            companies = []
+            if matches:
+                best_match = matches[0]['ratio'] if matches[0]['ratio'] > best_match else best_match
+            for item in matches[0:5]:
+                companies.append(f'{item["company"]}: {item["ratio"]}')
+                ids.append(f'{item["cbx_id"]}, {item["firstname"]} {item["lastname"]},'
+                           f'{item["birthdate"]} --> {", ".join(companies)}')
 
             # append matching results to the hc_list
-            hc_row.append(list(matches.keys())[0] if len(matches) == 1 else '?' if len(matches) > 1 else '')
-            hc_row.append(matches[key][0]["birthdate"] if len(matches) == 1 else '')
-            hc_row.append(best_match if len(matches) == 1 else '')
+            uniques_cbx_id = set(item['cbx_id'] for item in matches)
+            hc_row.append(matches[0]["cbx_id"] if len(uniques_cbx_id) == 1 else '?' if len(uniques_cbx_id) > 1 else '')
+            hc_row.append(matches[0]["birthdate"] if len(uniques_cbx_id) == 1 else '')
+            hc_row.append(best_match if len(uniques_cbx_id) == 1 else '')
+            hc_row.append(partial if len(uniques_cbx_id) == 1 else '')
             hc_row.append('|'.join(ids))
             writer.writerow(hc_row)
-            print(f'{index} of {total} [{len(matches)} found]')
+            print(f'{index} of {total} [{len(uniques_cbx_id)} found]')
             index += 1
