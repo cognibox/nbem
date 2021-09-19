@@ -117,9 +117,10 @@ if __name__ == '__main__':
                 cbx_name = f'{cbx_firstname.lower().strip()} {cbx_lastname.lower().strip()}'.strip()
                 hc_name = f'{hc_firstname.lower().strip()} {hc_lastname.lower().strip()}'.strip()
                 ratio_name = fuzz.token_set_ratio(cbx_name, hc_name)
-                ratio_name_exact = fuzz.token_sort_ratio(cbx_name, hc_name)
+
 
                 if ratio_name >= float(args.ratio_name):
+                    ratio_name_exact = fuzz.token_sort_ratio(cbx_name, hc_name)
                     partial = True if ratio_name_exact < float(args.ratio_name) else False
                     ratio_company = fuzz.token_sort_ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
                                                           clean_hc_company)
@@ -171,13 +172,12 @@ if __name__ == '__main__':
                 companies.append(f'{item["company"]}: {item["ratio"]}')
                 ids.append(f'{item["cbx_id"]}, {item["firstname"]} {item["lastname"]},'
                            f'{item["birthdate"]} --> {", ".join(companies)}')
-
             # append matching results to the hc_list
             uniques_cbx_id = set(item['cbx_id'] for item in matches)
             hc_row.append(matches[0]["cbx_id"] if len(uniques_cbx_id) == 1 else '?' if len(uniques_cbx_id) > 1 else '')
             hc_row.append(matches[0]["birthdate"] if len(uniques_cbx_id) == 1 else '')
             hc_row.append(best_match if len(uniques_cbx_id) == 1 else '')
-            hc_row.append(partial if len(uniques_cbx_id) == 1 else '')
+            hc_row.append(matches[0]['partial'] if len(uniques_cbx_id) == 1 else '')
             hc_row.append('|'.join(ids))
             writer.writerow(hc_row)
             print(f'{index} of {total} [{len(uniques_cbx_id)} found]')
