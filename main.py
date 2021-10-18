@@ -24,7 +24,7 @@ BASE_GENERIC_COMPANY_NAME_WORDS = ['construction', 'contracting', 'industriel', 
                                    'technologies', 'company', 'corporation', 'installations', 'enr']
 
 
-analysis_headers = ['cbx_id', 'birthdate', 'best_score', 'partial', 'analysis']
+analysis_headers = ['cbx_id', 'birthdate', 'best_score', 'partial', 'same_birthdate', 'match_count', 'analysis']
 
 
 def chunks(lst, n):
@@ -66,15 +66,6 @@ parser.add_argument('--cbx_list_encoding', dest='cbx_encoding', action='store',
                     default='utf-8',
                     help='Encoding for the cbx list (default: utf-8)')
 
-parser.add_argument('--hc_list_encoding', dest='hc_encoding', action='store',
-                    default='cp1252',
-                    help='Encoding for the hc list (default: cp1252)')
-
-parser.add_argument('--output_encoding', dest='output_encoding', action='store',
-                    default='cp1252',
-                    help='Encoding for the hc list (default: cp1252)')
-
-
 parser.add_argument('--min_company_match_ratio', dest='ratio_company', action='store',
                     default=60,
                     help='Minimum match ratio for contractors, between 0 and 100 (default 60)')
@@ -88,16 +79,23 @@ parser.add_argument('--additional_generic_name_word', dest='additional_generic_n
                     help='list of generic words in company name to ignore separated by the list separator'
                          ' (default separator is ;)')
 
-parser.add_argument('--min_name_match_ratio', dest='ratio_name', action='store',
+# parser.add_argument('--min_name_match_ratio', dest='ratio_name', action='store',
+#                    default=90,
+#                    help='Minimum match ratio for contractors, between 0 and 100 (default 90)')
+
+parser.add_argument('--min_first_name_match_ratio', dest='ratio_first_name', action='store',
+                    default=80,
+                    help='Minimum match ratio for first name, between 0 and 100 (default 80)')
+
+parser.add_argument('--min_last_name_match_ratio', dest='ratio_last_name', action='store',
                     default=90,
-                    help='Minimum match ratio for contractors, between 0 and 100 (default 90)')
+                    help='Minimum match ratio for last name, between 0 and 100 (default 90)')
 
 parser.add_argument('--no_headers', dest='no_headers', action='store_true',
                     help='to indicate that input files have no headers')
 
 parser.add_argument('--ignore_warnings', dest='ignore_warnings', action='store_true',
                     help='to ignore data consistency checks and run anyway...')
-
 
 args = parser.parse_args()
 
@@ -127,6 +125,13 @@ def check_headers(headers, standards, ignore):
                 exit(-1)
 
 
+def clean_company_name(name):
+    name = name.lower().replace('.', '').replace(',', '').strip()
+    name = re.sub(r"\([^()]*\)", "", name)
+    name = remove_generics(name)
+    return name
+
+
 if __name__ == '__main__':
     data_path = './data/'
     cbx_file = data_path + args.cbx_list
@@ -135,10 +140,11 @@ if __name__ == '__main__':
 
     # output parameters used
     print(f'Reading CBX list: {args.cbx_list} [{args.cbx_encoding}]')
-    print(f'Reading HC list: {args.hc_list} [{args.hc_encoding}]')
-    print(f'Outputting results in: {args.output} [{args.output_encoding}]')
+    print(f'Reading HC list: {args.hc_list}')
+    print(f'Outputting results in: {args.output}')
     print(f'contractor match ratio: {args.ratio_company}')
-    print(f'employee match ratio: {args.ratio_name}')
+    print(f'employee first name match ratio: {args.ratio_first_name}')
+    print(f'employee last name match ratio: {args.ratio_last_name}')
     # read data
     cbx_data = []
     hc_data = []
@@ -183,39 +189,40 @@ if __name__ == '__main__':
     hc_row = []
     for hc_row in hc_data:
         matches = []
-        hc_firstname = hc_row[HC_FIRSTNAME]
-        hc_lastname = hc_row[HC_LASTNAME]
+        hc_firstname = hc_row[HC_FIRSTNAME].lower().strip()
+        hc_lastname = hc_row[HC_LASTNAME].lower().strip()
         hc_company = hc_row[HC_COMPANY]
-        clean_hc_company = hc_company.lower().replace('.', '').replace(',', '').strip()
+        hc_company_cleaned = clean_company_name(hc_company)
+
         for cbx_row in cbx_data:
-            cbx_firstname = cbx_row[CBX_FIRSTNAME]
-            cbx_lastname = cbx_row[CBX_LASTNAME]
+            cbx_firstname = cbx_row[CBX_FIRSTNAME].lower().strip()
+            cbx_lastname = cbx_row[CBX_LASTNAME].lower().strip()
             cbx_company = cbx_row[CBX_COMPANY]
+            cbx_company_cleaned = clean_company_name(cbx_company)
+
             cbx_parents = cbx_row[CBX_PARENTS]
             cbx_previous = cbx_row[CBX_PREVIOUS]
-            cbx_name = f'{cbx_firstname.lower().strip()} {cbx_lastname.lower().strip()}'.strip()
-            hc_name = f'{hc_firstname.lower().strip()} {hc_lastname.lower().strip()}'.strip()
-            ratio_name = fuzz.token_set_ratio(cbx_name, hc_name)
-
-            if ratio_name >= float(args.ratio_name):
-                ratio_name_exact = fuzz.token_sort_ratio(cbx_name, hc_name)
-                partial = True if ratio_name_exact < float(args.ratio_name) else False
-                ratio_company = fuzz.token_sort_ratio(cbx_company.lower().replace('.', '').replace(',', '').strip(),
-                                                      clean_hc_company)
+#           cbx_name = f'{cbx_firstname} {cbx_lastname}'.strip()
+#            hc_name = f'{hc_firstname} {hc_lastname}'.strip()
+#            ratio_name = fuzz.token_set_ratio(cbx_name, hc_name)
+            ratio_first_name = fuzz.token_set_ratio(cbx_firstname, hc_firstname)
+            ratio_last_name = fuzz.token_sort_ratio(cbx_lastname, hc_lastname)
+            if ratio_first_name >= float(args.ratio_first_name) and ratio_last_name >= float(args.ratio_last_name):
+                ratio_first_name_exact = fuzz.token_sort_ratio(cbx_firstname, hc_firstname)
+                partial = True if ratio_first_name_exact < float(args.ratio_first_name) else False
+                ratio_company = fuzz.token_sort_ratio(cbx_company_cleaned, hc_company_cleaned)
                 ratio_parent = 0
                 cbx_parent_list = cbx_parents.split(args.list_separator)
                 for item in cbx_parent_list:
                     if item == cbx_company:
                         continue
-                    ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
-                                                  clean_hc_company)
+                    ratio = fuzz.token_sort_ratio(clean_company_name(item), hc_company_cleaned)
                     ratio_parent = ratio if ratio > ratio_parent else ratio_parent
                 ratio_previous = 0
                 for item in cbx_previous.split(args.list_separator):
                     if item == cbx_company or item in cbx_parent_list:
                         continue
-                    ratio = fuzz.token_sort_ratio(item.lower().replace('.', '').replace(',', '').strip(),
-                                                  clean_hc_company)
+                    ratio = fuzz.token_sort_ratio(clean_company_name(item), hc_company_cleaned)
                     ratio_previous = ratio if ratio > ratio_previous else ratio_previous
                 if (ratio_company >= float(args.ratio_company) or
                         ratio_parent >= float(args.ratio_company) or
@@ -224,7 +231,7 @@ if __name__ == '__main__':
                           ratio_parent, ratio_previous)
                     ratio_company = ratio_parent if ratio_parent > ratio_company else ratio_company
                     ratio_company = ratio_previous if ratio_previous > ratio_company else ratio_company
-                    overall_ratio = ratio_company * ratio_name / 100
+                    overall_ratio = ratio_company * ratio_first_name * ratio_last_name / 10000
                     parent_str = f'[parent: {cbx_parents}]' if cbx_parents else None
                     previous_str = f'[previous: {cbx_previous}]' if cbx_previous else None
                     display = [cbx_company]
@@ -250,13 +257,25 @@ if __name__ == '__main__':
             companies.append(f'{item["company"]}: {item["ratio"]}')
             ids.append(f'{item["cbx_id"]}, {item["firstname"]} {item["lastname"]},'
                        f'{item["birthdate"]} --> {", ".join(companies)}')
-        # append matching results to the hc_list
+
         uniques_cbx_id = set(item['cbx_id'] for item in matches)
+        same_bd = ''
+        if len(uniques_cbx_id) >= 1:
+            same_bd = True
+            if len(uniques_cbx_id) != 1:
+                bd = matches[0]['birthdate']
+                for item in matches[1:]:
+                    if item['birthdate'] != bd:
+                        same_bd = False
+                        break
+        # append matching results to the hc_list
         hc_row.append(matches[0]["cbx_id"] if len(uniques_cbx_id) == 1 else '?' if len(uniques_cbx_id) > 1 else '')
         hc_row.append(matches[0]["birthdate"] if len(uniques_cbx_id) == 1 else '')
         hc_row.append(best_match if len(uniques_cbx_id) == 1 else '')
         hc_row.append(matches[0]['partial'] if len(uniques_cbx_id) == 1 else '')
-        hc_row.append('|'.join(ids))
+        hc_row.append(same_bd)
+        hc_row.append(len(uniques_cbx_id) if len(uniques_cbx_id) else '')
+        hc_row.append('\n'.join(ids))
         for i, value in enumerate(hc_row):
             out_ws.cell(index+1, i+1, value)
         if index % 10:
