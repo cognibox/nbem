@@ -54,7 +54,7 @@ parser.add_argument('hc_list',
                     )
 # noinspection SpellCheckingInspection
 parser.add_argument('output',
-                    help=f'csv file with the hc_list columns and following columns\n{analysis_headers_text}\n\n ' 
+                    help=f'csv file with the hc_list columns and following columns\n{analysis_headers_text}\n\n' 
                          '''Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1
     [parents: C1 parent1;C1 parent2;etc..] 
