@@ -54,12 +54,13 @@ parser.add_argument('hc_list',
                     )
 # noinspection SpellCheckingInspection
 parser.add_argument('output',
-                    help=f'csv file with the hc_list columns and following columns\n{analysis_headers_text}\n\n:' 
+                    help=f'csv file with the hc_list columns and following columns\n{analysis_headers_text}\n\n' 
                          '''Matching information format:
-Cognibox ID, firstname lastname, birthdate --> Contractor 1 [parents: C1 parent1;C1 parent2;etc..] 
+    Cognibox ID, firstname lastname, birthdate --> Contractor 1
+    [parents: C1 parent1;C1 parent2;etc..] 
     [previous: Empl. Previous1;Empl. Previous2], match ratio 1,
     Contractor 2 [C2 parent1;C2 parent2;etc..], match ratio 2, etc...
-The matching ratio is a value betwween 0 and 100, where 100 is a perfect match.
+    The matching ratio is a value betwween 0 and 100, where 100 is a perfect match.
 Please note the Cognibox ID and birthdate is set ONLY if a single match his found. If no match
 or multiple matches are found it is left empty.''')
 
