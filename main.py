@@ -6,6 +6,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Alignment
 from fuzzywuzzy import fuzz
+from datetime import datetime
 
 CBX_HEADERS_LENGTH = 7
 CBX_FIRSTNAME, CBX_LASTNAME, CBX_ID, CBX_BIRTHDATE, CBX_COMPANY, CBX_PARENTS, CBX_PREVIOUS = range(CBX_HEADERS_LENGTH)
@@ -139,6 +140,7 @@ if __name__ == '__main__':
     output_file = data_path + args.output
 
     # output parameters used
+    print(f'Starting at {datetime.now()}')
     print(f'Reading CBX list: {args.cbx_list} [{args.cbx_encoding}]')
     print(f'Reading HC list: {args.hc_list}')
     print(f'Outputting results in: {args.output}')
@@ -301,3 +303,4 @@ if __name__ == '__main__':
     out_ws.add_table(tab)
     out_wb.save(filename=output_file)
     print('Analysis Completed')
+    print(f'Completed at {datetime.now()}')
