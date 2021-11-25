@@ -192,22 +192,22 @@ if __name__ == '__main__':
     hc_row = []
     for hc_row in hc_data:
         matches = []
-        hc_firstname = hc_row[HC_FIRSTNAME].lower().strip()
-        hc_lastname = hc_row[HC_LASTNAME].lower().strip()
-        hc_company = hc_row[HC_COMPANY]
+        hc_firstname = str(hc_row[HC_FIRSTNAME]).lower().strip()
+        hc_lastname = str(hc_row[HC_LASTNAME]).lower().strip()
+        hc_company = str(hc_row[HC_COMPANY])
         hc_company_cleaned = clean_company_name(hc_company)
 
         for cbx_row in cbx_data:
-            cbx_firstname = cbx_row[CBX_FIRSTNAME].lower().strip()
-            cbx_lastname = cbx_row[CBX_LASTNAME].lower().strip()
-            cbx_company = cbx_row[CBX_COMPANY]
+            cbx_firstname = str(cbx_row[CBX_FIRSTNAME]).lower().strip()
+            cbx_lastname = str(cbx_row[CBX_LASTNAME]).lower().strip()
+            if not hc_firstname:
+                cbx_lastname = ' '.join([cbx_firstname, cbx_lastname])
+                cbx_firstname = ''
+            cbx_company = str(cbx_row[CBX_COMPANY])
             cbx_company_cleaned = clean_company_name(cbx_company)
 
             cbx_parents = cbx_row[CBX_PARENTS]
             cbx_previous = cbx_row[CBX_PREVIOUS]
-#           cbx_name = f'{cbx_firstname} {cbx_lastname}'.strip()
-#            hc_name = f'{hc_firstname} {hc_lastname}'.strip()
-#            ratio_name = fuzz.token_set_ratio(cbx_name, hc_name)
             ratio_first_name = fuzz.token_set_ratio(cbx_firstname, hc_firstname)
             ratio_last_name = fuzz.token_sort_ratio(cbx_lastname, hc_lastname)
             if ratio_first_name >= float(args.ratio_first_name) and ratio_last_name >= float(args.ratio_last_name):
