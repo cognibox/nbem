@@ -1,5 +1,4 @@
 import argparse
-import csv
 import re
 import openpyxl
 from openpyxl.worksheet.table import Table, TableStyleInfo
@@ -13,10 +12,10 @@ CBX_FIRSTNAME, CBX_LASTNAME, CBX_ID, CBX_BIRTHDATE, CBX_COMPANY, CBX_PARENTS, CB
 
 cbx_headers = ['first_name', 'last_name', 'cbx_id', 'birth_date', 'contractor', 'parents', 'previous']
 
-HC_HEADERS_LENGTH = 3
-HC_COMPANY, HC_FIRSTNAME, HC_LASTNAME = range(HC_HEADERS_LENGTH)
+HC_HEADERS_LENGTH = 4
+HC_COMPANY, HC_FIRSTNAME, HC_LASTNAME, HC_BIRTHDATE = range(HC_HEADERS_LENGTH)
 
-hc_headers = ['company', 'first_name', 'last_name']
+hc_headers = ['company', 'first_name', 'last_name', 'birth_date']
 
 # noinspection SpellCheckingInspection
 BASE_GENERIC_COMPANY_NAME_WORDS = ['construction', 'contracting', 'industriel', 'industriels', 'service',
@@ -30,6 +29,7 @@ analysis_headers = ['cbx_id', 'birthdate', 'best_score', 'partial', 'same_birthd
 
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
+    # noinspection PyShadowingNames
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
@@ -44,17 +44,17 @@ parser = argparse.ArgumentParser(description='Tool to match employees without bi
                                              'all input/output files must be in the current directory',
                                  formatter_class=argparse.RawTextHelpFormatter)
 parser.add_argument('cbx_list',
-                    help=f'csv DB export file (no header) of employees with the following '
+                    help=f'xlsx DB export file of employees with the following'
                          f'columns:\n{cbx_headers_text}\n\n')
 
 
 parser.add_argument('hc_list',
-                    help=f'csv file (with header) and the following columns:\n{hc_headers_text}\n\n'
+                    help=f'xlsx file (with header) and the following columns:\n{hc_headers_text}\n\n'
                          'Followed by any other columns...'
                     )
 # noinspection SpellCheckingInspection
 parser.add_argument('output',
-                    help=f'csv file with the hc_list columns and following columns\n{analysis_headers_text}\n\n' 
+                    help=f'xlsx file with the hc_list columns and following columns\n{analysis_headers_text}\n\n' 
                          '''Matching information format:
     Cognibox ID, firstname lastname, birthdate --> Contractor 1
     [parents: C1 parent1;C1 parent2;etc..] 
@@ -63,10 +63,6 @@ parser.add_argument('output',
     The matching ratio is a value betwween 0 and 100, where 100 is a perfect match.
 Please note the Cognibox ID and birthdate is set ONLY if a single match his found. If no match
 or multiple matches are found it is left empty.''')
-
-parser.add_argument('--cbx_list_encoding', dest='cbx_encoding', action='store',
-                    default='utf-8',
-                    help='Encoding for the cbx list (default: utf-8)')
 
 parser.add_argument('--min_company_match_ratio', dest='ratio_company', action='store',
                     default=60,
@@ -142,7 +138,7 @@ if __name__ == '__main__':
 
     # output parameters used
     print(f'Starting at {datetime.now()}')
-    print(f'Reading CBX list: {args.cbx_list} [{args.cbx_encoding}]')
+    print(f'Reading CBX list: {args.cbx_list}')
     print(f'Reading HC list: {args.hc_list}')
     print(f'Outputting results in: {args.output}')
     print(f'contractor match ratio: {args.ratio_company}')
@@ -152,9 +148,13 @@ if __name__ == '__main__':
     cbx_data = []
     hc_data = []
     print('Reading Cognibox data file...')
-    with open(cbx_file, 'r', encoding=args.cbx_encoding) as cbx:
-        for row in csv.reader(cbx):
-            cbx_data.append(row)
+    cbx_wb = openpyxl.load_workbook(cbx_file, read_only=True)
+    cbx_sheet = cbx_wb.active
+    for row in cbx_sheet.rows:
+        if not row[0].value:
+            continue
+        cbx_data.append([cell.value if cell.value else '' for cell in row])
+        # todo: check db headers
     print(f'Completed reading {len(cbx_data)} employees.')
     print('Reading hiring client data file...')
     hc_wb = openpyxl.load_workbook(hc_file, read_only=True)
@@ -185,7 +185,7 @@ if __name__ == '__main__':
         out_wb.save(filename=output_file)
         headers = cbx_data.pop(0)
         check_headers(headers, cbx_headers, args.ignore_warnings)
-
+        cbx_data.pop(0)
     # match
     total = len(hc_data)
     index = 1
@@ -196,7 +196,7 @@ if __name__ == '__main__':
         hc_lastname = str(hc_row[HC_LASTNAME]).lower().strip()
         hc_company = str(hc_row[HC_COMPANY])
         hc_company_cleaned = clean_company_name(hc_company)
-
+        hc_date = hc_row[HC_BIRTHDATE]
         for cbx_row in cbx_data:
             cbx_firstname = str(cbx_row[CBX_FIRSTNAME]).lower().strip()
             cbx_lastname = str(cbx_row[CBX_LASTNAME]).lower().strip()
@@ -208,8 +208,10 @@ if __name__ == '__main__':
 
             cbx_parents = cbx_row[CBX_PARENTS]
             cbx_previous = cbx_row[CBX_PREVIOUS]
+            cbx_date = cbx_row[CBX_BIRTHDATE]
             ratio_first_name = fuzz.token_set_ratio(cbx_firstname, hc_firstname)
             ratio_last_name = fuzz.token_sort_ratio(cbx_lastname, hc_lastname)
+            same_date = True if (hc_date and hc_date == cbx_date) else False
             if ratio_first_name >= float(args.ratio_first_name) and ratio_last_name >= float(args.ratio_last_name):
                 ratio_first_name_exact = fuzz.token_sort_ratio(cbx_firstname, hc_firstname)
                 partial = True if ratio_first_name_exact < float(args.ratio_first_name) else False
@@ -229,9 +231,10 @@ if __name__ == '__main__':
                     ratio_previous = ratio if ratio > ratio_previous else ratio_previous
                 if (ratio_company >= float(args.ratio_company) or
                         ratio_parent >= float(args.ratio_company) or
-                        ratio_previous >= float(args.ratio_company)):
+                        ratio_previous >= float(args.ratio_company) or
+                        same_date):
                     print('   --> ', cbx_firstname, cbx_lastname, cbx_company, cbx_row[CBX_ID], ratio_company,
-                          ratio_parent, ratio_previous)
+                          ratio_parent, ratio_previous, same_date)
                     ratio_company = ratio_parent if ratio_parent > ratio_company else ratio_company
                     ratio_company = ratio_previous if ratio_previous > ratio_company else ratio_company
                     overall_ratio = ratio_company * ratio_first_name * ratio_last_name / 10000
