@@ -154,7 +154,6 @@ if __name__ == '__main__':
         if not row[0].value:
             continue
         cbx_data.append([cell.value if cell.value else '' for cell in row])
-        # todo: check db headers
     print(f'Completed reading {len(cbx_data)} employees.')
     print('Reading hiring client data file...')
     hc_wb = openpyxl.load_workbook(hc_file, read_only=True)
