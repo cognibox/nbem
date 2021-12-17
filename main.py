@@ -207,7 +207,10 @@ if __name__ == '__main__':
 
             cbx_parents = cbx_row[CBX_PARENTS]
             cbx_previous = cbx_row[CBX_PREVIOUS]
-            cbx_date = datetime_object = datetime.strptime(cbx_row[CBX_BIRTHDATE], '%Y-%m-%d')
+            try:
+                cbx_date = datetime_object = datetime.strptime(cbx_row[CBX_BIRTHDATE], '%Y-%m-%d')
+            except ValueError:
+                cbx_date = cbx_row[CBX_BIRTHDATE]
             ratio_first_name = fuzz.token_set_ratio(cbx_firstname, hc_firstname)
             ratio_last_name = fuzz.token_sort_ratio(cbx_lastname, hc_lastname)
             same_date = True if (hc_date and hc_date == cbx_date) else False
