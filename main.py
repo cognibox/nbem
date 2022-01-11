@@ -170,7 +170,6 @@ if __name__ == '__main__':
         hc_data.append([cell.value if cell.value else '' for cell in row])
     print(f'Completed reading {len(hc_data)} employees.')
 
-    print(f'Starting analysis...')
     out_wb = openpyxl.Workbook()
     out_ws = out_wb.active
     out_ws.title = "results"
@@ -185,6 +184,14 @@ if __name__ == '__main__':
         headers = cbx_data.pop(0)
         check_headers(headers, cbx_headers, args.ignore_warnings)
         cbx_data.pop(0)
+    # test date format
+    try:
+        cbx_date = datetime_object = datetime.strptime(cbx_data[0][CBX_BIRTHDATE], '%d/%m/%y')
+    except ValueError:
+        print(f'WARNING: date format doesnt seems to be "%d/%m/%y"')
+        if not args.ignore_warnings:
+            exit(-1)
+    print(f'Starting analysis...')
     # match
     total = len(hc_data)
     index = 1
@@ -208,7 +215,7 @@ if __name__ == '__main__':
             cbx_parents = cbx_row[CBX_PARENTS]
             cbx_previous = cbx_row[CBX_PREVIOUS]
             try:
-                cbx_date = datetime_object = datetime.strptime(cbx_row[CBX_BIRTHDATE], '%Y-%m-%d')
+                cbx_date = datetime_object = datetime.strptime(cbx_row[CBX_BIRTHDATE], '%d/%m/%y')
             except ValueError:
                 cbx_date = cbx_row[CBX_BIRTHDATE]
             ratio_first_name = fuzz.token_set_ratio(cbx_firstname, hc_firstname)
