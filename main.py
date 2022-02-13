@@ -20,7 +20,7 @@ hc_headers = ['company', 'first_name', 'last_name', 'birth_date']
 # noinspection SpellCheckingInspection
 BASE_GENERIC_COMPANY_NAME_WORDS = ['construction', 'contracting', 'industriel', 'industriels', 'service',
                                    'services', 'inc', 'limited', 'ltd', 'ltee', 'ltée', 'co', 'industrial',
-                                   'solutions', 'llc', 'enterprises', 'systems', 'industries',
+                                   'solutions', 'llc', 'enterprises', 'systems', 'industries', 'group', 'groupe',
                                    'technologies', 'company', 'corporation', 'installations', 'enr']
 
 
@@ -261,7 +261,8 @@ if __name__ == '__main__':
                                     'birthdate': cbx_row[CBX_BIRTHDATE],
                                     'company': cbx_company,
                                     'ratio': overall_ratio,
-                                    'partial': partial, })
+                                    'partial': partial,
+                                    'same_bd': same_date, })
         ids = []
         best_match = 0
         matches.sort(key=lambda x: x['ratio'], reverse=True)
@@ -274,21 +275,12 @@ if __name__ == '__main__':
                        f'{item["birthdate"]} --> {", ".join(companies)}')
 
         uniques_cbx_id = set(item['cbx_id'] for item in matches)
-        same_bd = ''
-        if len(uniques_cbx_id) >= 1:
-            same_bd = True
-            if len(uniques_cbx_id) != 1:
-                bd = matches[0]['birthdate']
-                for item in matches[1:]:
-                    if item['birthdate'] != bd:
-                        same_bd = False
-                        break
         # append matching results to the hc_list
         hc_row.append(matches[0]["cbx_id"] if len(uniques_cbx_id) == 1 else '?' if len(uniques_cbx_id) > 1 else '')
         hc_row.append(matches[0]["birthdate"] if len(uniques_cbx_id) == 1 else '')
         hc_row.append(best_match if len(uniques_cbx_id) == 1 else '')
         hc_row.append(matches[0]['partial'] if len(uniques_cbx_id) == 1 else '')
-        hc_row.append(same_bd)
+        hc_row.append(matches[0]['same_bd'] if len(uniques_cbx_id) == 1 else '')
         hc_row.append(len(uniques_cbx_id) if len(uniques_cbx_id) else '')
         hc_row.append('\n'.join(ids))
         for i, value in enumerate(hc_row):
